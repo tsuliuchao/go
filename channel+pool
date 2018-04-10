@@ -45,6 +45,14 @@ func main() {
 				p.Run(&np)
 				wg.Done()
 			}()
+		//试试替换如下代码，会出现什么奇迹	
+		//	go func() {
+		//		np := printName{
+		//			name: name,
+		//		}
+		//		p.Run(&np)
+		//		wg.Done()
+		//	}()
 		}
 	}
 	wg.Wait()
