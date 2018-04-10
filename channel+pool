@@ -1,0 +1,99 @@
+//	Kevin Chen (2017)
+//	Patterns from Pike's Google I/O talk, "Go Concurrency Patterns"
+
+//	Golang restoring sequencing after multiplexing
+
+package main
+
+import (
+	"log"
+	"ss/pool"
+	"sync"
+	"time"
+)
+
+var names = []string{
+	"chao",
+	"medemu",
+	"jerry",
+	"中古人",
+	"建龙",
+}
+
+type printName struct {
+	name string
+}
+
+func (m *printName) Task() {
+	log.Println(m.name)
+
+	time.Sleep(time.Second)
+}
+
+func main() {
+	// Create a work pool with 2 goroutines.
+	p := pool.New(2)
+	var wg sync.WaitGroup
+	wg.Add(100 * len(names))
+	// Iterate over the slice of names.
+	for i := 0; i < 100; i++ {
+		for _, name := range names {
+			np := printName{
+				name: name,
+			}
+			go func() {
+				p.Run(&np)
+				wg.Done()
+			}()
+		}
+	}
+	wg.Wait()
+	// Create a namePrinter and provide the
+	// specific name.
+
+	// Submit the task to be worked on. When RunTask
+	// returns we know it is being handled.
+
+	// Shutdown the work pool and wait for all existing work
+	// to be completed.
+	p.ShutDown()
+
+}
+//===================================================================================================================================
+package pool
+
+import "sync"
+
+type Worker interface {
+	Task()
+}
+
+type Pool struct {
+	work chan Worker
+	wg   sync.WaitGroup
+}
+
+func New(maxChan int) *Pool {
+	p := Pool{
+		work: make(chan Worker),
+	}
+
+	for i := 0; i < maxChan; i++ {
+		go func() {
+			for w := range p.work {
+				w.Task()
+			}
+			p.wg.Done()
+		}()
+	}
+	return &p
+}
+
+func (p *Pool) Run(w Worker) {
+	p.work <- w
+}
+
+func (p *Pool) ShutDown() {
+	close(p.work)
+	p.wg.Wait()
+}
