@@ -1,0 +1,133 @@
+摘要： 本文讲的是Go语言WaitGroup使用时需要注意的坑_Golang， 前言 WaitGroup在go语言中，用于线程同步，单从字面意思理解，wait等待的意思，group组、团队的意思，WaitGroup就是指等待一组，等待一个系列执行完成后才会继续向下执行。Golang 中的 WaitGroup 一直是同
+WaitGroup在go语言中，用于线程同步，单从字面意思理解，wait等待的意思，group组、团队的意思，WaitGroup就是指等待一组，等待一个系列执行完成后才会继续向下执行。Golang 中的 WaitGroup 一直是同步 goroutine 的推荐实践。自己用了两年多也没遇到过什么问题。
+来自：https://yq.aliyun.com/ziliao/92407
+直到最近的一天同事扔过来一段奇怪的代码：
+
+第一个坑
+
+复制代码 代码如下:
+
+package main
+ 
+import (
+    "log"
+ 
+    "sync"
+)
+ 
+func main() {
+    wg := sync.WaitGroup{}
+ 
+    for i := 0; i < 5; i++ {
+        go func(wg sync.WaitGroup, i int) {
+            wg.Add(1)
+            log.Printf("i:%d", i)
+            wg.Done()
+        }(wg, i)
+    }
+ 
+    wg.Wait()
+ 
+    log.Println("exit")
+}
+撇了一眼，觉得没什么问题。
+
+然而，它的运行结果是这样：
+
+复制代码 代码如下:
+
+2016/11/27 15:12:36 exit
+[Finished in 0.7s]
+或这样：
+
+复制代码 代码如下:
+
+2016/11/27 15:21:51 i:2
+2016/11/27 15:21:51 exit
+[Finished in 0.8s]
+或这样：
+
+复制代码 代码如下:
+
+2016/11/27 15:22:51 i:3
+2016/11/27 15:22:51 i:2
+2016/11/27 15:22:51 exit
+[Finished in 0.8s]
+一度让我以为手上的 mac 也没睡醒……
+
+这个问题如果理解了 WaitGroup 的设计目的就非常容易 fix 啦。因为 WaitGroup 同步的是 goroutine, 而上面的代码却在 goroutine 中进行 Add(1) 操作。因此，可能在这些 goroutine 还没来得及 Add(1) 已经执行 Wait 操作了。
+
+于是代码改成了这样：
+
+第二个坑
+
+复制代码 代码如下:
+
+package main
+ 
+import (
+    "log"
+ 
+    "sync"
+)
+ 
+func main() {
+    wg := sync.WaitGroup{}
+ 
+    for i := 0; i < 5; i++ {
+        wg.Add(1)
+        go func(wg sync.WaitGroup, i int) {
+            log.Printf("i:%d", i)
+            wg.Done()
+        }(wg, i)
+    }
+ 
+    wg.Wait()
+ 
+    log.Println("exit")
+}
+然而，mac 又睡了过去，而且是睡死了过去：
+
+复制代码 代码如下:
+
+2016/11/27 15:25:16 i:1
+2016/11/27 15:25:16 i:2
+2016/11/27 15:25:16 i:4
+2016/11/27 15:25:16 i:0
+2016/11/27 15:25:16 i:3
+fatal error: all goroutines are asleep - deadlock!
+wg 给拷贝传递到了 goroutine 中，导致只有 Add 操作，其实 Done操作是在 wg 的副本执行的。因此 Wait 就死锁了。
+
+于是代码改成了这样：
+
+填坑
+
+复制代码 代码如下:
+
+package main
+ 
+import (
+    "log"
+ 
+    "sync"
+)
+ 
+func main() {
+    wg := &sync.WaitGroup{}
+ 
+    for i := 0; i < 5; i++ {
+        wg.Add(1)
+        go func(wg *sync.WaitGroup, i int) {
+            log.Printf("i:%d", i)
+            wg.Done()
+        }(wg, i)
+    }
+ 
+    wg.Wait()
+ 
+    log.Println("exit")
+}
+ 
+总结
+
+好了，到这里终于解决了，以上就是关于Go语言WaitGroup使用时需要注意的一些坑，希望本文中提到的这些问题对大家学习或者使用Go语言的时候能有所帮助，如果有疑问大家可以留言交流。
