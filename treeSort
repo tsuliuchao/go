@@ -1,0 +1,56 @@
+//一个结构体S不能再包含S类型的字段，因为聚合类型的值不能包含它自身(数组也是一样)。但是S可以包含*S类型的字段，利用这个特性，我们可以创建链表、树这样的递归数据结构。下面的代码使用了二叉树来实现插入排序：
+package main
+
+import (
+	"fmt"
+)
+
+func main() {
+	aa := []int{77, 2, 3, 4, 5, 6, 6, 7, 7, 888, 8, 9, 66, 99}
+	Sort(aa)
+	fmt.Println(aa)
+
+}
+
+type tree struct {
+	value       int
+	left, right *tree
+}
+
+// Sort sorts values in place.
+func Sort(values []int) {
+	var root *tree
+	for _, v := range values {
+		//fmt.Println(v)
+		root = add(root, v)
+	}
+	appendValues(values[:0], root)
+}
+
+// appendValues appends the elements of t to values in order
+// and returns the resulting slice.
+func appendValues(values []int, t *tree) []int {
+	if t != nil {
+		values = appendValues(values, t.left)
+		values = append(values, t.value)
+		values = appendValues(values, t.right)
+	}
+	return values
+}
+
+func add(t *tree, value int) *tree {
+	//fmt.Println(t)
+	if t == nil {
+		//相当于 return &tree{value: value}.
+		t = new(tree)
+		t.value = value
+		return t
+	}
+	//	fmt.Println(value, t.value)
+	if value < t.value {
+		t.left = add(t.left, value)
+	} else {
+		t.right = add(t.right, value)
+	}
+	return t
+}
