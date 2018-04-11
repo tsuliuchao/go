@@ -266,3 +266,7 @@ func (s semaphore) Release(buffers int) {
 		<-s
 	}
 }
+//把一个channel作为关闭信号, 传入到所有channel中, 当处理的channel不再处理消息时, 发出信号. 其他的channel收到信号后, 停止发送信号
+//close(re.shutdown) channel被close之后，channel就会不停的往外发空数据,context就是通过这种特性实现的,可以通过 val,ok <- rw.shutdown; ok 来检测是不是关闭
+
+
