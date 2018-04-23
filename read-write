@@ -1,0 +1,143 @@
+//Let's make a Go 1-compatible list of all the ways to read and write files in Go.
+//Because file API has changed recently and most other answers don't work with Go 1. They also miss bufio which is important IMHO.
+//In the following examples I copy a file by reading from it and writing to the destination file.
+//Start with the basics
+
+package main
+
+import (
+    "io"
+    "os"
+)
+
+func main() {
+    // open input file
+    fi, err := os.Open("input.txt")
+    if err != nil {
+        panic(err)
+    }
+    // close fi on exit and check for its returned error
+    defer func() {
+        if err := fi.Close(); err != nil {
+            panic(err)
+        }
+    }()
+
+    // open output file
+    fo, err := os.Create("output.txt")
+    if err != nil {
+        panic(err)
+    }
+    // close fo on exit and check for its returned error
+    defer func() {
+        if err := fo.Close(); err != nil {
+            panic(err)
+        }
+    }()
+
+    // make a buffer to keep chunks that are read
+    buf := make([]byte, 1024)
+    for {
+        // read a chunk
+        n, err := fi.Read(buf)
+        if err != nil && err != io.EOF {
+            panic(err)
+        }
+        if n == 0 {
+            break
+        }
+
+        // write a chunk
+        if _, err := fo.Write(buf[:n]); err != nil {
+            panic(err)
+        }
+    }
+}
+//
+//Here I used os.Open and os.Create which are convenient wrappers around os.OpenFile. We usually don't need to call OpenFile directly.
+//Notice treating EOF. Read tries to fill buf on each call, and returns io.EOF as error if it reaches end of file in doing so. In this case buf will still hold data. Consequent calls to Read returns zero as the number of bytes read and same io.EOF as error. Any other error will lead to a panic.
+
+//Using bufio
+
+package main
+
+import (
+    "bufio"
+    "io"
+    "os"
+)
+
+func main() {
+    // open input file
+    fi, err := os.Open("input.txt")
+    if err != nil {
+        panic(err)
+    }
+    // close fi on exit and check for its returned error
+    defer func() {
+        if err := fi.Close(); err != nil {
+            panic(err)
+        }
+    }()
+    // make a read buffer
+    r := bufio.NewReader(fi)
+
+    // open output file
+    fo, err := os.Create("output.txt")
+    if err != nil {
+        panic(err)
+    }
+    // close fo on exit and check for its returned error
+    defer func() {
+        if err := fo.Close(); err != nil {
+            panic(err)
+        }
+    }()
+    // make a write buffer
+    w := bufio.NewWriter(fo)
+
+    // make a buffer to keep chunks that are read
+    buf := make([]byte, 1024)
+    for {
+        // read a chunk
+        n, err := r.Read(buf)
+        if err != nil && err != io.EOF {
+            panic(err)
+        }
+        if n == 0 {
+            break
+        }
+
+        // write a chunk
+        if _, err := w.Write(buf[:n]); err != nil {
+            panic(err)
+        }
+    }
+
+    if err = w.Flush(); err != nil {
+        panic(err)
+    }
+}
+//bufio is just acting as a buffer here, because we don't have much to do with data. In most other situations (specially with text files) bufio is very useful by giving us a nice API for reading and writing easily and flexibly, while it handles buffering behind the scenes.
+//Using ioutil
+
+package main
+
+import (
+    "io/ioutil"
+)
+
+func main() {
+    // read the whole file at once
+    b, err := ioutil.ReadFile("input.txt")
+    if err != nil {
+        panic(err)
+    }
+
+    // write the whole body at once
+    err = ioutil.WriteFile("output.txt", b, 0644)
+    if err != nil {
+        panic(err)
+    }
+}
+//Easy as pie! But use it only if you're sure you're not dealing with big files.
