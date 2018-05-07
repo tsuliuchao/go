@@ -23,3 +23,12 @@ func main() {
 	fmt.Println(rets)
 	fmt.Println(rets[0])
 }
+=======================================================
+D:/go/bin/go.exe build -i [D:/go_path/src/ss]
+成功: 进程退出代码 0.
+D:/go_path/src/ss/ss.exe  [D:/go_path/src/ss]
+&{xiaorui.cc}
+this is Test method
+[xiaorui.cc]
+xiaorui.cc
+成功: 进程退出代码 0.
