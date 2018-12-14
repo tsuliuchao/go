@@ -9,7 +9,7 @@ import (
 
 func main(){
 
-	maze := readMaze("D:/go_path/src/EEE/maze.in") //读maze.in文件
+	maze := readMaze("D:/go_path/src/maze/maze.in") //读maze.in文件
 	for _,row := range maze {
 
 		for _, val := range row {
@@ -17,7 +17,7 @@ func main(){
 		}
 		fmt.Println()
 	}
-	fmt.Println("--------")
+	fmt.Println("------------------------------")
 
 	steps :=walk(maze,point{0,0},point{len(maze)-1,len(maze[0])-1})
 
@@ -29,70 +29,62 @@ func main(){
 		fmt.Println()
 	}
 }
-//坐标，i是行，j是列
 type point struct {
-	i,j int
+	x,y int
 }
-//走的路径，指下一个方向,上，左，下，右 逆时针方向走
+//走的路径，指下一个方向,上，左，下，右 逆时针
 var dirs = []point{{-1,0},{0,-1},{1,0},{0,1}}
 
 
 func (p point)add(r point) point {
-	return point{p.i+r.i,p.j+r.j}
+	return point{p.x+r.x,p.y+r.y}
 }
 
 //获取点point在grid位置的值
 func (p point)at(grid [][]int) (int,bool){
-	if p.i < 0 || p.i >= len(grid){
+	if p.x < 0 || p.x >= len(grid){
 		return 0,false
 	}
-	if p.j < 0 || p.j >=len(grid[p.i]){
+	if p.y < 0 || p.y >=len(grid[p.x]){
 		return 0,false
 	}
-	return grid[p.i][p.j],true
+	return grid[p.x][p.y],true
 }
-
-func walk(maze [][]int,start,end point) [][]int{
-	//steps记录游走的信息
+func walk(maze [][]int,start,end point) [][] int{
 	steps := make([][]int,len(maze))
-	for i := range steps{
-		steps[i] = make([]int,len(maze[i]))
+	queue := []point{start}
+	for i := range maze{
+		steps[i] = make([]int,len(maze[i]) )
 	}
-	//fmt.Println(steps)
-	//作为队列使用，存放走得通的点,当某个点要被探索便把它出队列
-	Q := []point{start}
-	for len(Q) > 0{
-		cur := Q[0]
-		Q = Q[1:]//切片，去掉cur，依次循环下去cur都不是以前的值
-		//fmt.Println(Q,cur,end)
+	for len(queue)>0{
+		current := queue[0]
+		queue = queue[1:]
 
-		if cur == end{
-			break
+		if current == end{
+			continue
 		}
-
-		for _,dir := range dirs{
-			next := cur.add(dir)
+		for _,dir :=range dirs{
 			//maze at next is 0
 			//and steps at next is 0
 			//and next != start
-			//判断该点是否越界或者遇到墙
-			val,ok := next.at(maze)
-			if !ok || val == 1{
-				continue
-			}
-			//==0相当于还没有
-			val,ok = next.at(steps)
-			if !ok || val != 0{
-				continue
-			}
-			//不能往回走
+			next := current.add(dir)
 			if next == start{
 				continue
 			}
-			//当前的步骤数
-			curSteps,_ := cur.at(steps)
-			steps[next.i][next.j] = curSteps + 1
-			Q = append(Q,next)
+			//遇到为1的墙，跳过
+			val,err := next.at(maze)
+			if !err || val==1{
+				continue
+			}
+			//不等于0表示已经走过，跳过
+			val,err = next.at(steps)
+			if !err || val !=0 {
+				continue
+			}
+			//走过路径+1
+			current_step,err := current.at(steps)
+			steps[next.x][next.y] = current_step+1
+			queue = append(queue,next)
 		}
 	}
 	return steps
