@@ -128,6 +128,13 @@ func readMaze(filename string) [][]int {
 1 1 1 0 0
 0 1 0 0 1
 0 1 0 0 0
+//run-result
+  0   0   4   5   6 
+  1   2   3   0   7 
+  2   0   4   0   8 
+  0   0   0  10   9 
+  0   0  12  11   0 
+  0   0  13  12  13 
 
 
 
