@@ -36,6 +36,7 @@ func AddJobs(jobs chan<- Job,b []int){
 	for k,v := range b {
 		jobs <- Job{k, v}
 	}
+	//此处忘记关闭，引起死锁
 	close(jobs)
 }
 //任务处理
