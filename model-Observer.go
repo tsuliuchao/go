@@ -11,6 +11,7 @@ type Subject interface {
 	Notify()
 	State() int
 	SetState(int)
+	//添加监听、删除监听
 	AddCallFunc(*update)
 	RemoveCallFunc(*update)
 }
