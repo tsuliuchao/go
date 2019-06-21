@@ -1,0 +1,200 @@
+通常情况下，我们把被测试的文件与另外写的测试文件放到同一个声明包里面，称为包内测试；当然也可以把测试函数的文件放到独立的一个包里面，称为包外测试。
+
+不过，包外测试源码文件存在一个弊端，那就是在它们的测试函数中无法测试被测源码文件中的包级私有的程序实体，比如包级私有的变量、函数和结构体类型。这是因为这两者的所属代码包是不相同的。所以，一般很少会编写包外测试源码文件。
+
+go test命令的简单使用
+
+常用命令	意义
+go test .	运行当前目录下所有测试文件的测试函数，必须当前路径下有测试文件，子文件夹里的测试文件不会检测到
+go test ./…	遍历运行当前目录下所有子文件夹内的测试函数
+go test filename_test.go	运行当前目录下某个测试文件里的所有测试函数
+go test -run TestFuncName	运行当前目录下某个特定测试函数
+go test ./service -run TestFuncName	运行指定路径./service里的某个特定测试函数
+常用标记	作用
+-v	显示通过的详细测试信息，默认只显示错误信息以及通过的概要
+-c	生成用于运行测试的可执行文件，但不执行它。这个可执行文件会被命名为“pkg.test”，其中的“pkg”即为被测试代码包的导入路径的最后一个元素的名称。
+-i	只是安装测试所依赖的包，不会编译执行
+-o	指定编译生成的可执行文件名
+go test 单元测试
+
+规则
+
+测试文件名必须是_test.go结尾的，这样在执行go test的时候才会执行到相应的代码
+你必须import testing这个包
+所有的测试用例函数必须是Test开头
+测试用例会按照源代码中写的顺序依次执行
+测试函数TestXxx(t *testing.T)只有一个参数 t， 可以用 t 记录错误或者是测试状态
+测试函数的格式：func TestXxx (t *testing.T)，Xxx部分可以为任意的字母数字的组合，但是首字母不能是小写字母[a-z]，例如Testintdiv是错误的函数名。
+函数中通过调用testing.T的Error, Errorf, FailNow, Fatal, FatalIf方法，说明测试不通过，调用Log方法用来记录测试的信息。
+两种方式写单元测试
+
+等待被测试的文件 division.go 如下，需要写一个测试文件命名为xxx_test.go在同一个包里
+
+package math
+
+import (
+    "errors"
+)
+
+func Division(a, b float64) (float64, error) {
+    if b == 0 {
+        return 0, errors.New("除数不能为0")
+    }
+
+    return a / b, nil
+}
+
+直接自己撸测试函数，这样比较灵活想怎么测就怎么测
+
+mydivision_test.go
+
+package math
+
+import (
+    "testing"
+)
+
+//用例1
+func Test_Division_1(t *testing.T) {
+    if i, e := Division(6, 2); i != 3 || e != nil {
+        t.Error("除法函数测试没通过") // 如果不是如预期的那么就报错
+    } else {
+        t.Log("第一个测试通过了") //记录一些你期望记录的信息
+    }
+}
+//用例2
+func Test_Division_2(t *testing.T) {
+    t.Error("执行t.Error分支就会提示测试失败")
+}
+
+运行命令go test .结果如下
+
+$ go test .
+--- FAIL: Test_Division_2 (0.00s)
+        mydivision_test.go:16: 执行t.Error分支就会提示测试失败
+FAIL
+FAIL    mytest/goTest   0.001s
+1
+2
+3
+4
+5
+运行命令go test -v .结果如下
+
+$ go test  -v .
+=== RUN   Test_Division_1
+--- PASS: Test_Division_1 (0.00s)
+        mydivision_test.go:11: 第一个测试通过了
+=== RUN   Test_Division_2
+--- FAIL: Test_Division_2 (0.00s)
+        mydivision_test.go:16: 执行t.Error分支就会提示测试失败
+FAIL
+exit status 1
+FAIL    mytest/goTest   0.001s
+
+可见不加-v，只会显示失败的用例，加了-v，通过的用例和失败的用例都会显示出来。
+
+借助gotests工具包自动生成测试文件，适合以用例表格驱动来测试的函数
+
+先安装gotests工具包go get -v github.com/cweill/gotests/...
+运行命令gotests -all -w .为当前目录所有文件生成对应测试文件
+结果为division.go生成了division_test.go文件如下，生成文件的默认前缀为对应的原文件名
+division_test.go，然后留出一片“// TODO: Add test cases.”区域给我们填用例
+
+package math
+
+import "testing"
+
+func TestDivision(t *testing.T) {
+    type args struct {
+        a float64
+        b float64
+    }
+    tests := []struct {
+        name    string  //用例名字
+        args    args    //传给被测函数的参数
+        want    float64 //预期返回结果
+        wantErr bool    //用bool方便判断是否返回error，如果类型改为error反而不好判断
+    }{
+        // TODO: Add test cases.
+        {"case 0", args{6, 2}, 3, false},
+        {"case 1", args{6, 0}, 0, true},//注意第二个用例是会返回error的，因为除数不能为0，所以此处wantErr为true
+    }
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            got, err := Division(tt.args.a, tt.args.b)
+            if (err != nil) != tt.wantErr {
+                t.Errorf("Division() error = %v, wantErr %v", err, tt.wantErr)
+                return
+            }
+            if got != tt.want {
+                t.Errorf("Division() = %v, want %v", got, tt.want)
+            }
+        })
+    }
+}
+
+
+运行结果
+两个用例都通过了测试
+
+$ go test -v .
+=== RUN   TestDivision
+=== RUN   TestDivision/case_0
+=== RUN   TestDivision/case_1
+--- PASS: TestDivision (0.00s)
+    --- PASS: TestDivision/case_0 (0.00s)
+    --- PASS: TestDivision/case_1 (0.00s)
+PASS
+ok      mytest/goTest   0.001s
+
+go test 压力测试
+
+规则
+
+文件名规则和单元测试一样
+压力测试函数必须遵循如下格式，其中XXX可以是任意字母数字的组合，但是首字母不能是小写字母，注意琪参数是testing.B，单元测试参数是testing.T
+func BenchmarkXXX(b *testing.B) { … }
+go test不会默认执行压力测试的函数，如果要执行压力测试需要带上参数-bench，语法:-bench=文件路径名，例如go test -test.bench=. 表示测试当前目录下全部的压力测试函数
+在压力测试用例中，有一个属性testing.B.N，它表示的是进行压力测试的次数。可以通过b.N = 1234来设置压力次数
+如 webbench_test.go 压力测试函数
+package math
+
+import (
+    "testing"
+)
+
+func Benchmark_Division(b *testing.B) {
+    for i := 0; i < b.N; i++ { //use b.N for looping
+        Division(4, 5)
+    }
+}
+
+func Benchmark_TimeConsumingFunction(b *testing.B) {
+    b.StopTimer() //调用该函数停止压力测试的时间计数
+
+    //做一些初始化的工作,例如读取文件数据,数据库连接之类的,
+    //这样这些时间不影响我们测试函数本身的性能
+
+    b.StartTimer() //重新开始时间
+
+    b.N=1234 //自定义执行1234次
+
+    for i := 0; i < b.N; i++ {
+        Division(4, 5)
+    }
+}
+
+执行如下命令go test -v ./webbench_test.go ./division.go -bench=".*"只显示压力测试，因为两个文件有依赖所以需要放到一起编译执行
+其中-bench=".*"表示执行所有压力测试函数
+结果如下，
+
+$ go test -v ./webbench_test.go ./division.go  -bench=".*"
+goos: linux
+goarch: amd64
+Benchmark_Division-8                    2000000000               0.74 ns/op
+Benchmark_TimeConsumingFunction-8           1234                 0.96 ns/op
+PASS
+ok      command-line-arguments  1.558s
+
+上面信息说明Benchmark_Division默认执行了2000000000次，而Benchmark_TimeConsumingFunction通过设置 b.N=1234 执行不同次数；每次的执行平均时间分别是0.74纳秒和0.96纳秒，总运行时间1.558秒
